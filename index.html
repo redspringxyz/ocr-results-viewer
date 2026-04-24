@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OCR side-by-side viewer</title>
+    <meta
+      name="description"
+      content="Compare OCR outputs from multiple arXiv-tuned vision-language models on the same page, side-by-side."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="viewer-header">
+      <div class="viewer-header__title">
+        <h1>OCR side-by-side</h1>
+        <p class="viewer-header__subtitle" id="source-line">Loading&hellip;</p>
+      </div>
+
+      <nav class="viewer-header__controls" aria-label="Page navigation">
+        <button type="button" id="prev-btn" class="viewer-btn" aria-label="Previous page (Left arrow)">
+          &larr; Prev
+        </button>
+        <button type="button" id="shuffle-btn" class="viewer-btn" aria-label="Shuffle (s)">
+          Shuffle
+        </button>
+        <button type="button" id="next-btn" class="viewer-btn" aria-label="Next page (Right arrow)">
+          Next &rarr;
+        </button>
+
+        <label class="viewer-picker">
+          <span class="viewer-picker__label">Page</span>
+          <select id="page-picker" aria-label="Page picker"></select>
+        </label>
+      </nav>
+    </header>
+
+    <main class="viewer-main">
+      <section class="page-panel" aria-labelledby="page-heading">
+        <h2 id="page-heading" class="page-panel__heading">Rendered page</h2>
+        <dl class="page-meta">
+          <div class="page-meta__row">
+            <dt>arXiv ID</dt>
+            <dd id="page-arxiv">&mdash;</dd>
+          </div>
+          <div class="page-meta__row">
+            <dt>Page</dt>
+            <dd id="page-number">&mdash;</dd>
+          </div>
+          <div class="page-meta__row">
+            <dt>Primary category</dt>
+            <dd id="page-category">&mdash;</dd>
+          </div>
+        </dl>
+        <figure class="page-panel__figure">
+          <img
+            id="page-image"
+            alt="Rendered page from the arXiv paper"
+            loading="eager"
+            decoding="async"
+          />
+        </figure>
+      </section>
+
+      <section
+        id="model-grid"
+        class="model-grid"
+        aria-label="Per-model OCR outputs"
+      ></section>
+    </main>
+
+    <footer class="viewer-footer">
+      <p>
+        Keyboard:
+        <kbd>&larr;</kbd> / <kbd>&rarr;</kbd> to navigate,
+        <kbd>s</kbd> to shuffle.
+      </p>
+    </footer>
+
+    <script type="module" src="./viewer.js"></script>
+  </body>
+</html>
