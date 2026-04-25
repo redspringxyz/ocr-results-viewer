@@ -1,6 +1,13 @@
 // viewer.js — fetches data/outputs.json and renders the side-by-side grid.
 // Vanilla ES module, no build step, no framework.
 
+import { marked } from "https://esm.sh/marked@15.0.4";
+
+marked.use({
+  gfm: true,
+  breaks: false,
+});
+
 const DATA_URL = "./data/outputs.json";
 
 const ALLOWED_TAGS = new Set([
@@ -10,6 +17,7 @@ const ALLOWED_TAGS = new Set([
   "br",
   "caption",
   "code",
+  "del",
   "div",
   "em",
   "figcaption",
@@ -27,6 +35,7 @@ const ALLOWED_TAGS = new Set([
   "ol",
   "p",
   "pre",
+  "s",
   "span",
   "strong",
   "sub",
@@ -50,11 +59,14 @@ const ALLOWED_TAGS = new Set([
 // javascript: URLs.
 const ALLOWED_ATTRS = {
   a: ["href", "title"],
+  code: ["class"],
   img: ["src", "alt", "title"],
+  pre: ["class"],
   td: ["colspan", "rowspan", "align"],
   th: ["colspan", "rowspan", "align", "scope"],
   col: ["span"],
   colgroup: ["span"],
+  li: ["class"],
 };
 
 const URL_ATTRS = new Set(["href", "src"]);
@@ -128,6 +140,30 @@ function escapeText(str) {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * True when the payload uses real layout HTML (e.g. Chandra `<div>` trees),
+ * not Markdown or plain text. Unknown tags alone (e.g. `</think>` wrappers)
+ * do not flip this to HTML — those are stripped and the remainder is parsed
+ * as Markdown.
+ */
+function looksLikeHtml(s) {
+  const t = String(s ?? "").trim();
+  if (!t.includes("<")) return false;
+  const head = t.slice(0, 8000);
+  const tagRe = /<\/?([a-z][\w:-]*)\b/gi;
+  let m;
+  while ((m = tagRe.exec(head)) !== null) {
+    if (ALLOWED_TAGS.has(m[1].toLowerCase())) return true;
+  }
+  return false;
+}
+
+function renderMarkdownToSafeHtml(markdown) {
+  const raw = marked.parse(String(markdown ?? ""));
+  const html = typeof raw === "string" ? raw : String(raw);
+  return sanitizeHtml(html);
+}
+
 function formatMs(ms) {
   if (typeof ms !== "number" || !Number.isFinite(ms)) return "—";
   if (ms < 1000) return `${Math.round(ms)}ms`;
@@ -136,7 +172,18 @@ function formatMs(ms) {
 
 function formatTokens(tokens) {
   if (typeof tokens !== "number" || !Number.isFinite(tokens)) return "—";
-  return `${tokens} tok`;
+  return `${tokens.toLocaleString()} tok`;
+}
+
+function formatUsd(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  if (value === 0) return "$0";
+  if (Math.abs(value) < 0.01) return `$${value.toFixed(4)}`;
+  return `$${value.toFixed(2)}`;
+}
+
+function hasNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 const state = {
@@ -284,11 +331,16 @@ function buildCard(slug, output) {
 
   card.appendChild(header);
 
+  const metrics = buildMetrics(output);
+  if (metrics) {
+    card.appendChild(metrics);
+  }
+
   const toggle = document.createElement("div");
   toggle.className = "model-card__toggle";
   toggle.innerHTML = `
     <span>View:</span>
-    <button type="button" data-mode="html" aria-pressed="true">Rendered</button>
+    <button type="button" data-mode="html" aria-pressed="true" title="Sanitized HTML or rendered Markdown">Rendered</button>
     <button type="button" data-mode="text" aria-pressed="false">Raw</button>
   `;
   card.appendChild(toggle);
@@ -336,13 +388,55 @@ function buildBadges(output) {
     lat.textContent = formatMs(output.latency_ms);
     out.push(lat);
   }
-  if (typeof output.tokens === "number") {
+  if (hasNumber(output.input_tokens) || hasNumber(output.output_tokens)) {
+    if (hasNumber(output.input_tokens)) {
+      const input = document.createElement("span");
+      input.className = "badge";
+      input.textContent = `in ${formatTokens(output.input_tokens)}`;
+      out.push(input);
+    }
+    if (hasNumber(output.output_tokens)) {
+      const outputTok = document.createElement("span");
+      outputTok.className = "badge";
+      outputTok.textContent = `out ${formatTokens(output.output_tokens)}`;
+      out.push(outputTok);
+    }
+  } else if (typeof output.tokens === "number") {
     const tok = document.createElement("span");
     tok.className = "badge";
     tok.textContent = formatTokens(output.tokens);
     out.push(tok);
   }
+  if (hasNumber(output.cost_usd)) {
+    const cost = document.createElement("span");
+    cost.className = "badge badge--cost";
+    cost.textContent = formatUsd(output.cost_usd);
+    out.push(cost);
+  }
   return out;
+}
+
+function buildMetrics(output) {
+  if (!output) return null;
+  const rows = [
+    ["Input", output.input_tokens, formatTokens],
+    ["Output", output.output_tokens, formatTokens],
+    ["Total", output.total_tokens, formatTokens],
+    ["Cost", output.cost_usd, formatUsd],
+  ].filter(([, value]) => hasNumber(value));
+
+  if (rows.length === 0) return null;
+
+  const dl = document.createElement("dl");
+  dl.className = "model-card__metrics";
+  for (const [label, value, formatter] of rows) {
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+    const dd = document.createElement("dd");
+    dd.textContent = formatter(value);
+    dl.append(dt, dd);
+  }
+  return dl;
 }
 
 function fillBody(body, cardState) {
@@ -355,7 +449,7 @@ function fillBody(body, cardState) {
     return;
   }
 
-  if (output.error && !output.html && !output.text) {
+  if (output.error && !output.html && !output.text && !output.markdown) {
     body.classList.add("model-card__body--error");
     body.textContent = `endpoint error: ${output.error}`;
     return;
@@ -363,33 +457,47 @@ function fillBody(body, cardState) {
 
   if (mode === "text") {
     const pre = document.createElement("pre");
-    pre.textContent = output.text || output.html || "(empty)";
+    pre.textContent =
+      output.text ?? output.markdown ?? output.html ?? "(empty)";
     body.replaceChildren(pre);
-    if (!output.text && !output.html) {
+    if (!output.text && !output.markdown && !output.html) {
       body.classList.add("model-card__body--empty");
     }
     return;
   }
 
-  // "html" mode — pass through sanitizer, fall back to escaped text.
-  const html = output.html;
-  if (!html) {
-    if (output.text) {
-      const pre = document.createElement("pre");
-      pre.textContent = output.text;
-      body.replaceChildren(pre);
-    } else {
-      body.classList.add("model-card__body--empty");
-      body.textContent = "(empty output)";
-    }
-    return;
-  }
+  // Preview mode: real HTML (sanitized) vs Markdown → HTML (then sanitized).
+  body.classList.remove("model-card__body--md");
+  const explicitMd = output.markdown;
+  const htmlField = output.html;
+  const textField = output.text;
 
   try {
-    body.innerHTML = sanitizeHtml(html);
+    if (explicitMd) {
+      body.classList.add("model-card__body--md");
+      body.innerHTML = renderMarkdownToSafeHtml(explicitMd);
+      return;
+    }
+
+    if (htmlField && looksLikeHtml(htmlField)) {
+      body.innerHTML = sanitizeHtml(htmlField);
+      return;
+    }
+
+    const mdSource = htmlField || textField;
+    if (mdSource) {
+      body.classList.add("model-card__body--md");
+      body.innerHTML = renderMarkdownToSafeHtml(mdSource);
+      return;
+    }
+
+    body.classList.add("model-card__body--empty");
+    body.textContent = "(empty output)";
   } catch (err) {
+    body.classList.remove("model-card__body--md");
     body.classList.add("model-card__body--error");
-    body.textContent = `render failure: ${err.message}. Raw:\n${escapeText(html)}`;
+    const fallback = explicitMd ?? htmlField ?? textField ?? "";
+    body.textContent = `render failure: ${err.message}. Raw:\n${escapeText(fallback)}`;
   }
 }
 

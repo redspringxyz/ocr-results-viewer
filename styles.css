@@ -276,6 +276,37 @@ body {
   border-color: color-mix(in srgb, var(--error) 40%, var(--border));
 }
 
+.badge--cost {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+}
+
+.model-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+  gap: 0.35rem 0.65rem;
+  margin: -0.1rem 0 0.65rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.model-card__metrics dt {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.model-card__metrics dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .model-card__toggle {
   display: inline-flex;
   align-items: center;
@@ -340,6 +371,71 @@ body {
 
 .model-card__body p {
   margin: 0 0 0.75rem;
+}
+
+.model-card__body--md h1,
+.model-card__body--md h2,
+.model-card__body--md h3,
+.model-card__body--md h4,
+.model-card__body--md h5,
+.model-card__body--md h6 {
+  margin: 0.65rem 0 0.4rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.model-card__body--md h1 {
+  font-size: 1.1rem;
+}
+
+.model-card__body--md h2 {
+  font-size: 1.02rem;
+}
+
+.model-card__body--md h3 {
+  font-size: 0.98rem;
+}
+
+.model-card__body--md h4,
+.model-card__body--md h5,
+.model-card__body--md h6 {
+  font-size: 0.92rem;
+}
+
+.model-card__body--md ul,
+.model-card__body--md ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.model-card__body--md li {
+  margin: 0.15rem 0;
+}
+
+.model-card__body--md blockquote {
+  margin: 0 0 0.75rem;
+  padding: 0.35rem 0 0.35rem 0.75rem;
+  border-left: 3px solid var(--border);
+  color: var(--fg-muted);
+}
+
+.model-card__body--md hr {
+  margin: 0.75rem 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.model-card__body--md pre {
+  background: var(--bg-code);
+  padding: 0.55rem 0.65rem;
+  border-radius: 4px;
+  margin: 0 0 0.75rem;
+}
+
+.model-card__body--md pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.78rem;
 }
 
 .model-card__body table {
