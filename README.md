@@ -62,6 +62,16 @@ sanitized HTML view and the plain-text view.
           "latency_ms": 3200,
           "tokens": 742
         },
+        "openai:gpt-5.4-mini": {
+          "html": "<p>...</p>",
+          "text": "plain text version",
+          "latency_ms": 4100,
+          "tokens": 812,
+          "input_tokens": 1490,
+          "output_tokens": 812,
+          "total_tokens": 2302,
+          "cost_usd": 0.004775
+        },
         "qwen-35b-awq": {
           "html": null,
           "text": null,
@@ -78,6 +88,9 @@ sanitized HTML view and the plain-text view.
 Missing `outputs[model]` entries render as `(no output)` &mdash; the viewer does
 not break on sparse data. Entries with `error` are rendered with an error
 badge and an error body. Empty-string `html` / `text` render as `(empty output)`.
+The proprietary cost probe may also include `input_tokens`, `output_tokens`,
+`total_tokens`, and `cost_usd`; those fields are optional and are displayed only
+when present, so older hosted-model exports continue to render normally.
 
 ### HTML sanitization
 
